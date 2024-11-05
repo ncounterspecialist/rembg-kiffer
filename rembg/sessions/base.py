@@ -73,11 +73,7 @@ class BaseSession:
 
     @classmethod
     def u2net_home(cls, *args, **kwargs):
-        return os.path.expanduser(
-            os.getenv(
-                "U2NET_HOME", os.path.join(os.getenv("XDG_DATA_HOME", "~"), ".u2net")
-            )
-        )
+        return os.path.join('rembg','checkpoint')
 
     @classmethod
     def download_models(cls, *args, **kwargs):

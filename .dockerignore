@@ -7,4 +7,5 @@
 !requirements-gpu.txt
 !versioneer.py
 !README.md
+!main.py
 .env

@@ -190,21 +190,21 @@ rembg p -w path/to/input path/to/output
 Used to start http server.
 
 ```shell
-rembg s --host 0.0.0.0 --port 7000 --log_level info
+rembg s --host 0.0.0.0 --port 8080 --log_level info
 ```
 
-To see the complete endpoints documentation, go to: `http://localhost:7000/api`.
+To see the complete endpoints documentation, go to: `http://localhost:8080/api`.
 
 Remove the background from an image url
 
 ```shell
-curl -s "http://localhost:7000/api/remove?url=http://input.png" -o output.png
+curl -s "http://localhost:8080/api/remove?url=http://input.png" -o output.png
 ```
 
 Remove the background from an uploaded image
 
 ```shell
-curl -s -F file=@/path/to/input.jpg "http://localhost:7000/api/remove"  -o output.png
+curl -s -F file=@/path/to/input.jpg "http://localhost:8080/api/remove"  -o output.png
 ```
 
 ### rembg `b`

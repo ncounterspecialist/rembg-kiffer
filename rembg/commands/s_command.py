@@ -18,6 +18,11 @@ from ..session_factory import new_session
 from ..sessions import sessions_names
 from ..sessions.base import BaseSession
 
+import json
+import base64
+from typing import Dict, Any
+from fastapi import Response
+import io
 
 @click.command(  # type: ignore
     name="s",
@@ -26,7 +31,7 @@ from ..sessions.base import BaseSession
 @click.option(
     "-p",
     "--port",
-    default=7000,
+    default=8080,
     type=int,
     show_default=True,
     help="port",
@@ -188,6 +193,8 @@ def s_command(port: int, host: str, log_level: str, threads: int) -> None:
                 else None
             )
 
+    
+
     def im_without_bg(content: bytes, commons: CommonQueryParams) -> Response:
         kwargs = {}
 
@@ -197,23 +204,49 @@ def s_command(port: int, host: str, log_level: str, threads: int) -> None:
             except Exception:
                 pass
 
-        return Response(
-            remove(
-                content,
-                session=sessions.setdefault(
-                    commons.model, new_session(commons.model, **kwargs)
-                ),
-                alpha_matting=commons.a,
-                alpha_matting_foreground_threshold=commons.af,
-                alpha_matting_background_threshold=commons.ab,
-                alpha_matting_erode_size=commons.ae,
-                only_mask=commons.om,
-                post_process_mask=commons.ppm,
-                bgcolor=commons.bgc,
-                **kwargs,
+        # Call the `remove` function to get the masks and base64 image
+        result = remove(
+            content,
+            session=sessions.setdefault(
+                commons.model, new_session(commons.model, **kwargs)
             ),
-            media_type="image/png",
+            alpha_matting=commons.a,
+            alpha_matting_foreground_threshold=commons.af,
+            alpha_matting_background_threshold=commons.ab,
+            alpha_matting_erode_size=commons.ae,
+            only_mask=commons.om,
+            post_process_mask=commons.ppm,
+            bgcolor=commons.bgc,
+            **kwargs,
         )
+
+         # Process the masks to convert each to base64
+        mask_base64_list = []
+        for mask in result["masks"]:
+            buffer = io.BytesIO()
+            mask.save(buffer, format="PNG")
+            mask_base64_list.append(base64.b64encode(buffer.getvalue()).decode("utf-8"))
+
+        # Convert mask centers to standard Python int format
+        mask_centers_converted = [
+            {"x": int(center["x"]) if center["x"] is not None else None,
+            "y": int(center["y"]) if center["y"] is not None else None}
+            for center in result["mask_centers"]
+        ]
+
+        # Create the response dictionary with masks, mask centers, and base64 image
+        response_data: Dict[str, Any] = {
+            "masks": mask_base64_list,
+            "mask_centers": mask_centers_converted,
+            "image_base64": result["image_base64"],
+        }
+
+        # Return as JSON response
+        return Response(
+            content=json.dumps(response_data),
+            media_type="application/json"
+        )
+
 
     @app.on_event("startup")
     def startup():

@@ -1,0 +1,48 @@
+name: Deploy to AWS
+
+on:
+  push:
+    tags:
+      - 'beta-*'
+      - 'prod-*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Set environment variables based on tag
+        run: |
+          if [[ ${{ github.ref }} == refs/tags/beta-* ]]; then
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID_BETA }}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY_BETA }}" >> $GITHUB_ENV
+            echo "AWS_REGION=${{ secrets.AWS_REGION_BETA }}" >> $GITHUB_ENV
+            echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID_BETA }}" >> $GITHUB_ENV
+            echo "ECR_REPOSITORY_NAME=${{ secrets.ECR_REPOSITORY_NAME_BETA }}" >> $GITHUB_ENV
+            echo "TAG_NAME=latest" >> $GITHUB_ENV
+          elif [[ ${{ github.ref }} == refs/tags/prod-* ]]; then
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID_PROD }}" >> $GITHUB_ENV
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}" >> $GITHUB_ENV
+            echo "AWS_REGION=${{ secrets.AWS_REGION_PROD }}" >> $GITHUB_ENV
+            echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID_PROD }}" >> $GITHUB_ENV
+            echo "ECR_REPOSITORY_NAME=${{ secrets.ECR_REPOSITORY_NAME_PROD }}" >> $GITHUB_ENV
+            echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          fi
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build and push Docker image
+        id: build-image
+        run: |
+          REPO_URI=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY_NAME }}
+          docker build -t $REPO_URI:$TAG_NAME .
+          docker push $REPO_URI:$TAG_NAME

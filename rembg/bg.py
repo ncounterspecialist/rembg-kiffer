@@ -1,7 +1,7 @@
 import io
 from enum import Enum
-from typing import Any, List, Optional, Tuple, Union, cast
-
+from typing import Any, List, Optional, Tuple, Union, cast, Dict
+import base64
 import numpy as np
 import onnxruntime as ort
 from cv2 import (
@@ -216,11 +216,9 @@ def remove(
     force_return_bytes: bool = False,
     *args: Optional[Any],
     **kwargs: Optional[Any]
-) -> Union[bytes, PILImage, np.ndarray]:
+) -> Dict[str, Any]:
     """
-    Remove the background from an input image.
-
-    This function takes in various parameters and returns a modified version of the input image with the background removed. The function can handle input data in the form of bytes, a PIL image, or a numpy array. The function first checks the type of the input data and converts it to a PIL image if necessary. It then fixes the orientation of the image and proceeds to perform background removal using the 'u2net' model. The result is a list of binary masks representing the foreground objects in the image. These masks are post-processed and combined to create a final cutout image. If a background color is provided, it is applied to the cutout image. The function returns the resulting cutout image in the format specified by the input 'return_type' parameter or as python bytes if force_return_bytes is true.
+    Remove the background from an input image and return the masks, their centers, and the base64-encoded image.
 
     Parameters:
         data (Union[bytes, PILImage, np.ndarray]): The input image data.
@@ -237,7 +235,7 @@ def remove(
         **kwargs (Optional[Any]): Additional keyword arguments.
 
     Returns:
-        Union[bytes, PILImage, np.ndarray]: The cutout image with the background removed.
+        Dict[str, Any]: A dictionary containing the list of masks, their center coordinates, and the base64-encoded image.
     """
     if isinstance(data, bytes) or force_return_bytes:
         return_type = ReturnType.BYTES
@@ -256,8 +254,6 @@ def remove(
         )
 
     putalpha = kwargs.pop("putalpha", False)
-
-    # Fix image orientation
     img = fix_image_orientation(img)
 
     if session is None:
@@ -265,14 +261,29 @@ def remove(
 
     masks = session.predict(img, *args, **kwargs)
     cutouts = []
+    mask_images = []  # To store the individual mask images
+    mask_centers = []  # To store the center coordinates of each mask
 
     for mask in masks:
         if post_process_mask:
             mask = Image.fromarray(post_process(np.array(mask)))
 
+        mask_images.append(mask)  # Collect each mask
+
+        # Get bounding box and center of the mask
+        mask_array = np.array(mask)
+        y_indices, x_indices = np.where(mask_array > 0)  # Get non-zero points
+        if y_indices.size > 0 and x_indices.size > 0:
+            min_x, max_x = x_indices.min(), x_indices.max()
+            min_y, max_y = y_indices.min(), y_indices.max()
+            center_x = (min_x + max_x) // 2
+            center_y = (min_y + max_y) // 2
+            mask_centers.append({"x": center_x, "y": center_y})
+        else:
+            mask_centers.append({"x": None, "y": None})
+
         if only_mask:
             cutout = mask
-
         elif alpha_matting:
             try:
                 cutout = alpha_matting_cutout(
@@ -302,14 +313,15 @@ def remove(
     if bgcolor is not None and not only_mask:
         cutout = apply_background_color(cutout, bgcolor)
 
-    if ReturnType.PILLOW == return_type:
-        return cutout
-
-    if ReturnType.NDARRAY == return_type:
-        return np.asarray(cutout)
-
+    # Convert final cutout image to base64
     bio = io.BytesIO()
     cutout.save(bio, "PNG")
     bio.seek(0)
+    base64_image = base64.b64encode(bio.read()).decode('utf-8')
 
-    return bio.read()
+    # Return the masks, centers, and base64-encoded cutout image
+    return {
+        "masks": mask_images,
+        "mask_centers": mask_centers,
+        "image_base64": base64_image
+    }
