@@ -6,6 +6,7 @@ import base64
 from typing import Dict,Any
 from rembg import remove  # Ensure this import is correct based on your project structure
 
+
 def handler(event, context):
     """
     AWS Lambda handler function to process image data and return masks, mask centers, and a base64 cutout.
@@ -36,20 +37,35 @@ def handler(event, context):
     # Call the remove function
     result = remove(img)
     mask_base64_list = []
+    bounding_rects = []
     for mask in result["masks"]:
         buffer = io.BytesIO()
         mask.save(buffer, format="PNG")  # Save each mask image to a buffer
         mask_base64_list.append(base64.b64encode(buffer.getvalue()).decode("utf-8"))  # Convert to base64
 
+        # Calculate bounding box
+        bbox = mask.getbbox()
+        if bbox:
+            x_min, y_min, x_max, y_max = bbox
+            bounding_rects.append({
+                "x_min": x_min,
+                "y_min": y_min,
+                "x_max": x_max,
+                "y_max": y_max
+            })
+        else:
+            bounding_rects.append(None)
+
     mask_centers_converted = [
             {"x": int(center["x"]) if center["x"] is not None else None,
             "y": int(center["y"]) if center["y"] is not None else None}
-            for center in result["mask_centers"]
+            for center in result["mask_centers"] 
         ]
 
     response_data: Dict[str, Any] = {
         "masks": mask_base64_list,
         "mask_centers": mask_centers_converted,
+        "bounding_rects": bounding_rects,  # Include bounding rectangles
         "image_base64": result["image_base64"],
     }
 
