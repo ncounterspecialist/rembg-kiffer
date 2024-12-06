@@ -135,7 +135,7 @@ def handler(event, context):
         cropped_base64 = None
 
     # Generate S3 keys
-    iso_timestamp = datetime.now(timezone.utc).isoformat().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+    iso_timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
     base_key_path = f"{orgId}/{requestId}/cutoutImages/"
     s3_image_key = f"{base_key_path}image_{iso_timestamp}.png"
     cropped_s3_image_key = f"{base_key_path}cropped_image_{iso_timestamp}.png"
