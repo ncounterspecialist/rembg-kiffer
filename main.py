@@ -4,8 +4,55 @@ import requests
 import io
 import base64
 from typing import Dict,Any
-from rembg import remove  # Ensure this import is correct based on your project structure
+from rembg import remove
+import boto3
+from datetime import datetime, timezone
+import os
 
+s3_client = boto3.client('s3')
+S3_BUCKET_S3_URL = "s3://kifferai-static-assets-prod"
+S3_BUCKET_URL = "https://kifferai-static-assets-prod.s3.ap-south-1.amazonaws.com"
+CDN_URL = "https://static-assets.kifferai.com"
+AWS_REGION = os.environ.get('AWS_REGION')
+
+def get_public_url(url):
+    if url.startswith(S3_BUCKET_URL):
+        return url.replace(S3_BUCKET_URL, CDN_URL)
+    elif url.startswith(S3_BUCKET_S3_URL):
+        return url.replace(S3_BUCKET_S3_URL, CDN_URL)
+    return url 
+
+
+def upload_base64_to_s3(bucket, key, image_base64, region):
+    """
+    Uploads a base64 image to an S3 bucket.
+
+    Parameters:
+        bucket (str): Name of the S3 bucket.
+        key (str): The desired file name (key) in the S3 bucket.
+        image_base64 (str): The base64-encoded image data.
+    """
+    # Decode the base64 image
+    image_data = base64.b64decode(image_base64)
+    
+    # Upload the image to S3
+    try:
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=image_data,
+            ContentType="image/png"
+        )
+        print(f"Uploaded {key} to S3 bucket {bucket}.")
+
+        https_url = f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+
+        public_url = get_public_url(https_url)
+        return public_url
+
+    except Exception as e:
+        print(f"Error uploading to S3: {e}")
+        raise
 
 
 def handler(event, context):
@@ -21,6 +68,8 @@ def handler(event, context):
     """
     # Retrieve query parameters
     url = event.get('queryStringParameters', {}).get('url', None)
+    orgId = event.get('queryStringParameters', {}).get("orgId", "defaultOrg")
+    requestId = event.get('queryStringParameters', {}).get("requestId", "defaultRequest")
 
     # Load image from URL
     if url:
@@ -85,18 +134,40 @@ def handler(event, context):
     else:
         cropped_base64 = None
 
+    # Generate S3 keys
+    iso_timestamp = datetime.now(timezone.utc).isoformat().strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+    base_key_path = f"{orgId}/{requestId}/cutoutImages/"
+    s3_image_key = f"{base_key_path}image_{iso_timestamp}.png"
+    cropped_s3_image_key = f"{base_key_path}cropped_image_{iso_timestamp}.png"
+
+    full_image_url = upload_base64_to_s3(
+        bucket="kifferai-static-assets-prod",
+        key=s3_image_key,
+        image_base64=result["image_base64"],
+        region=AWS_REGION
+    )
+
+    cropped_image_url = None
+    if cropped_base64:
+        cropped_image_url = upload_base64_to_s3(
+            bucket="kifferai-static-assets-prod",
+            key=cropped_s3_image_key,
+            image_base64=cropped_base64,
+            region=AWS_REGION
+        )
+
+
+
     response_data: Dict[str, Any] = {
-        "masks": mask_base64_list,
-        "mask_centers": mask_centers_converted,
         "bounding_rects": bounding_rects,
-        "cropped_image_base64": cropped_base64,
-        "image_base64": result["image_base64"],
+        "cropped_image_url": cropped_image_url,
+        "image_url": full_image_url,
     }
 
     # Return the results as a JSON response
     return {
         "statusCode": 200,
-        "body": json.dumps(response_data),  # Convert the result dictionary to JSON
+        "body": response_data,  # Convert the result dictionary to JSON
         "headers": {
             "Content-Type": "application/json"
         }
