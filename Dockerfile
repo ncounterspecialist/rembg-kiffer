@@ -10,6 +10,8 @@ RUN python -m pip install ".[cli]"
 
 RUN pip install "numpy<2"
 
+RUN pip install boto3
+
 # Create the checkpoint directory
 RUN mkdir -p rembg/checkpoint
 
