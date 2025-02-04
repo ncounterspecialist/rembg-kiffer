@@ -16,7 +16,7 @@ RUN pip install boto3
 RUN mkdir -p rembg/checkpoint
 
 # Download the model
-RUN curl -L -o rembg/checkpoint/u2net.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx
+RUN curl -L -o rembg/checkpoint/birefnet-massive.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/BiRefNet-massive-TR_DIS5K_TR_TEs-epoch_420.onnx
 
 # Define the Lambda handler
 CMD ["main.handler"]

@@ -206,9 +206,9 @@ def download_models() -> None:
 def remove(
     data: Union[bytes, PILImage, np.ndarray],
     alpha_matting: bool = False,
-    alpha_matting_foreground_threshold: int = 240,
-    alpha_matting_background_threshold: int = 10,
-    alpha_matting_erode_size: int = 10,
+    alpha_matting_foreground_threshold: int = 270,
+    alpha_matting_background_threshold: int = 20,
+    alpha_matting_erode_size: int = 11,
     session: Optional[BaseSession] = None,
     only_mask: bool = False,
     post_process_mask: bool = False,

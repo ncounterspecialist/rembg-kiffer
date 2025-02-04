@@ -8,6 +8,8 @@ from rembg import remove
 import boto3
 from datetime import datetime, timezone
 import os
+from rembg.session_factory import new_session
+from rembg.sessions.base import BaseSession
 
 s3_client = boto3.client('s3')
 S3_BUCKET_S3_URL = "s3://kifferai-static-assets-prod"
@@ -85,7 +87,8 @@ def handler(event, context):
     img = Image.open(io.BytesIO(image_data))
 
     # Call the remove function
-    result = remove(img)
+    sessions: dict[str, BaseSession] = {}
+    result = remove(img,session=new_session("birefnet-massive"))
 
     mask_base64_list = []
     bounding_rects = []

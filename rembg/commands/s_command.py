@@ -113,19 +113,19 @@ def s_command(port: int, host: str, log_level: str, threads: int) -> None:
             ),
             a: bool = Query(default=False, description="Enable Alpha Matting"),
             af: int = Query(
-                default=240,
+                default=255,
                 ge=0,
                 le=255,
                 description="Alpha Matting (Foreground Threshold)",
             ),
             ab: int = Query(
-                default=10,
+                default=20,
                 ge=0,
                 le=255,
                 description="Alpha Matting (Background Threshold)",
             ),
             ae: int = Query(
-                default=10, ge=0, description="Alpha Matting (Erode Structure Size)"
+                default=11, ge=0, description="Alpha Matting (Erode Structure Size)"
             ),
             om: bool = Query(default=False, description="Only Mask"),
             ppm: bool = Query(default=False, description="Post Process Mask"),
