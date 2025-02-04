@@ -257,7 +257,7 @@ def remove(
     img = fix_image_orientation(img)
 
     if session is None:
-        session = new_session("u2net", *args, **kwargs)
+        session = new_session("birefnet-massive", *args, **kwargs)
 
     masks = session.predict(img, *args, **kwargs)
     cutouts = []

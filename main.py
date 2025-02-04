@@ -8,14 +8,12 @@ from rembg import remove
 import boto3
 from datetime import datetime, timezone
 import os
-from rembg.session_factory import new_session
-from rembg.sessions.base import BaseSession
 
 s3_client = boto3.client('s3')
 S3_BUCKET_S3_URL = "s3://kifferai-static-assets-prod"
 S3_BUCKET_URL = "https://kifferai-static-assets-prod.s3.ap-south-1.amazonaws.com"
 CDN_URL = "https://static-assets.kifferai.com"
-AWS_REGION = os.environ.get('AWS_REGION')
+AWS_REGION = os.environ.get('AWS_REGION',"ap-south-1")
 
 def get_public_url(url):
     if url.startswith(S3_BUCKET_URL):
@@ -86,10 +84,8 @@ def handler(event, context):
     # Convert image data to a PIL image
     img = Image.open(io.BytesIO(image_data))
 
-    # Call the remove function
-    sessions: dict[str, BaseSession] = {}
-    result = remove(img,session=new_session("birefnet-massive"))
-
+    result = remove(img)
+    
     mask_base64_list = []
     bounding_rects = []
 
